@@ -1,0 +1,12 @@
+[package]
+name = "strffi"
+version = "0.1.0"
+authors = ["Daniel Keep <daniel.keep@gmail.com>"]
+
+[features]
+default = ["nightly", "nightly-alloc"]
+nightly = []
+nightly-alloc = []
+
+[dependencies]
+libc = "0.2.20"
