@@ -1,3 +1,6 @@
+/*!
+Encoding conversion support.
+*/
 use std::fmt;
 
 pub mod mb_x_wc;

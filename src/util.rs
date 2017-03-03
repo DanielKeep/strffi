@@ -175,3 +175,22 @@ where
         }
     }
 }
+
+pub trait Unsigned: Sized {
+    type Unsigned;
+    fn unsigned(self) -> Self::Unsigned;
+}
+
+impl Unsigned for u16 {
+    type Unsigned = u16;
+    fn unsigned(self) -> Self::Unsigned {
+        self
+    }
+}
+
+impl Unsigned for i32 {
+    type Unsigned = u32;
+    fn unsigned(self) -> Self::Unsigned {
+        self as Self::Unsigned
+    }
+}
