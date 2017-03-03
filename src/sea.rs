@@ -34,6 +34,7 @@ This type *may* be used in FFI signatures and types, but we nonetheless recommen
 
 `E` defines the encoding of the string data.  *e.g.* `MultiByte` for the current C runtime multibyte encoding, and `Wide` for C wide strings.
 */
+#[repr(C)]
 pub struct SeStr<S, E> where S: Structure<E>, E: Encoding {
     data: S::RefTarget,
 }
@@ -175,6 +176,18 @@ impl<S, E> SeStr<S, E> where S: Structure<E>, E: Encoding {
     */
     pub fn as_ptr_mut(&mut self) -> S::FfiMutPtr {
         S::as_ffi_ptr_mut(&mut self.data)
+    }
+
+    /**
+    Returns an iterator over the units of this string.
+
+    # Efficiency
+
+    This method is *O*(1).  For structures without an explicit length, the returned iterator computes the length lazily.
+    */
+    pub fn units<'a>(&'a self) -> S::Iter
+    where S: StructureIter<'a, E> {
+        S::iter(&self.data)
     }
 
     /**
@@ -390,6 +403,7 @@ This type *may* be used in FFI signatures and types, but we nonetheless recommen
 
 `A` defines the allocator which manages the string data.  *e.g.* `Malloc` for the C runtime heap allocator, and `Rust` for the Rust heap allocator.
 */
+#[repr(C)]
 pub struct SeaString<S, E, A>
 where
     S: Structure<E> + StructureAlloc<E, A>,

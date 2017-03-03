@@ -9,7 +9,7 @@ use libc::{c_char};
 use alloc::{AllocError, Malloc};
 use encoding::{MbUnit, MultiByte};
 use sea::{SeStr, SeaString};
-use structure::ZeroTerm;
+use structure::{ZeroTerm, ZeroTermIter};
 
 macro_rules! nyi {
     () => (panic!("nyi"))
@@ -124,6 +124,17 @@ impl ZMbStr {
     */
     pub fn as_ptr_mut(&mut self) -> *mut c_char {
         self.0.as_ptr_mut()
+    }
+
+    /**
+    Returns an iterator over the units of this string.
+
+    # Efficiency
+
+    This method is *O*(1).  The length is computed lazily.
+    */
+    pub fn units<'a>(&'a self) -> ZeroTermIter<'a, MultiByte> {
+        self.0.units()
     }
 
     /**
