@@ -3,25 +3,25 @@ use std::iter;
 use std::mem;
 use libc::{c_char};
 use encoding::{TranscodeTo, UnitIter, CheckedUnicode, MultiByte, Wide, MbUnit, WUnit};
-use encoding::conv::os::{WcToUniIter2, WcToUniError};
+use encoding::conv::os::{WcToUniIter, WcToUniError};
 use ffi::{MB_LEN_MAX, mbrtowc, wcrtomb, mbstate_t};
 use util::{LiftErrIter, LiftTrapErrIter, LiftErrExt};
 
 impl<It> TranscodeTo<Wide> for UnitIter<MultiByte, It> where It: Iterator<Item=MbUnit> {
-    type Iter = MbsToWcIter2<It>;
+    type Iter = MbsToWcIter<It>;
     type Error = MbsToWcError;
 
     fn transcode(self) -> Self::Iter {
-        MbsToWcIter2::new(self.into_iter())
+        MbsToWcIter::new(self.into_iter())
     }
 }
 
 impl<It> TranscodeTo<CheckedUnicode> for UnitIter<MultiByte, It> where It: Iterator<Item=MbUnit> {
     type Iter = LiftErrIter<
         iter::Map<
-            WcToUniIter2<
+            WcToUniIter<
                 LiftTrapErrIter<
-                    MbsToWcIter2<It>,
+                    MbsToWcIter<It>,
                     MbsToWcError,
                 >
             >,
@@ -32,13 +32,13 @@ impl<It> TranscodeTo<CheckedUnicode> for UnitIter<MultiByte, It> where It: Itera
     type Error = MbsToUniError;
 
     fn transcode(self) -> Self::Iter {
-        MbsToWcIter2::new(self.into_iter())
-            .lift_err(|over| WcToUniIter2::new(over)
+        MbsToWcIter::new(self.into_iter())
+            .lift_err(|over| WcToUniIter::new(over)
                 .map(map_err as fn(_) -> _))
     }
 }
 
-pub struct MbsToWcIter2<It> {
+pub struct MbsToWcIter<It> {
     iter: Option<It>,
     at: usize,
     // buf: [c_char; MB_LEN_MAX],
@@ -46,9 +46,9 @@ pub struct MbsToWcIter2<It> {
     state: mbstate_t,
 }
 
-impl<It> MbsToWcIter2<It> {
+impl<It> MbsToWcIter<It> {
     pub fn new(iter: It) -> Self {
-        MbsToWcIter2 {
+        MbsToWcIter {
             iter: Some(iter),
             at: 0,
             state: unsafe { mem::zeroed() },
@@ -78,7 +78,7 @@ impl<It> WcsToMbIter<It> {
     }
 }
 
-impl<It> Iterator for MbsToWcIter2<It> where It: Iterator<Item=MbUnit> {
+impl<It> Iterator for MbsToWcIter<It> where It: Iterator<Item=MbUnit> {
     type Item = Result<WUnit, MbsToWcError>;
 
     fn next(&mut self) -> Option<Self::Item> {

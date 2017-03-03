@@ -3,29 +3,29 @@ use encoding::{TranscodeTo, UnitIter, CheckedUnicode, Wide, WUnit};
 pub use super::WcToUniError;
 
 impl<It> TranscodeTo<CheckedUnicode> for UnitIter<Wide, It> where It: Iterator<Item=WUnit> {
-    type Iter = WcToUniIter2<It>;
+    type Iter = WcToUniIter<It>;
     type Error = WcToUniError;
 
     fn transcode(self) -> Self::Iter {
-        WcToUniIter2::new(self.into_iter())
+        WcToUniIter::new(self.into_iter())
     }
 }
 
-pub struct WcToUniIter2<It> {
+pub struct WcToUniIter<It> {
     at: usize,
     iter: Option<It>,
 }
 
-impl<It> WcToUniIter2<It> {
-    pub fn new(iter: It) -> WcToUniIter2<It> {
-        WcToUniIter2 {
+impl<It> WcToUniIter<It> {
+    pub fn new(iter: It) -> WcToUniIter<It> {
+        WcToUniIter {
             at: 0,
             iter: Some(iter),
         }
     }
 }
 
-impl<It> Iterator for WcToUniIter2<It> where It: Iterator<Item=WUnit> {
+impl<It> Iterator for WcToUniIter<It> where It: Iterator<Item=WUnit> {
     type Item = Result<char, WcToUniError>;
 
     fn next(&mut self) -> Option<Self::Item> {
