@@ -13,8 +13,8 @@ use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut, RangeFull};
 
 use alloc::{Allocator, Malloc};
-use encoding::{Encoding, TranscodeTo, UnitDebug, CheckedUnicode};
-use structure::{Structure, StructureAlloc, StructureDefault, MutationSafe, OwnershipTransfer, ZeroTerminated, Slice};
+use encoding::{Encoding, TranscodeTo, UnitDebug, UnitIter, CheckedUnicode};
+use structure::{Structure, StructureAlloc, StructureDefault, StructureIter, MutationSafe, OwnershipTransfer, ZeroTerminated, Slice};
 use util::{TrapErrExt, Utf8EncodeExt};
 
 /**
@@ -199,9 +199,10 @@ impl<S, E> SeStr<S, E> where S: Structure<E>, E: Encoding {
 
     This conversion will fail if the string contains any units which cannot be translated into Unicode.
     */
-    pub fn into_string(&self) -> Result<String, Box<StdError>>
+    pub fn into_string<'a>(&'a self) -> Result<String, Box<StdError>>
     where
-        for<'a> &'a [E::Unit]: TranscodeTo<char>,
+        S: StructureIter<'a, E>,
+        UnitIter<E, S::Iter>: TranscodeTo<CheckedUnicode>,
     {
         let mut err = Ok(());
         let units: Vec<_> = self
@@ -223,12 +224,13 @@ impl<S, E> SeStr<S, E> where S: Structure<E>, E: Encoding {
 
     This conversion will fail if the string contains any units which cannot be translated into the target encoding, or if allocation fails.
     */
-    pub fn transcode_to<U, F, A>(&self) -> Result<SeaString<U, F, A>, Box<StdError>>
+    pub fn transcode_to<'a, T, F, A>(&'a self) -> Result<SeaString<T, F, A>, Box<StdError>>
     where
-        U: Structure<F> + StructureAlloc<F, A>,
+        S: StructureIter<'a, E>,
+        T: Structure<F> + StructureAlloc<F, A>,
         F: Encoding,
         A: Allocator,
-        for <'a> &'a [E::Unit]: TranscodeTo<F::Unit>,
+        UnitIter<E, S::Iter>: TranscodeTo<F>,
     {
         let units: Result<Vec<_>, _> = self.transcode_to_iter::<F>().collect();
         let units = units?;
@@ -244,12 +246,13 @@ impl<S, E> SeStr<S, E> where S: Structure<E>, E: Encoding {
 
     This conversion will fail if the string contains any units which cannot be translated into the target encoding.
     */
-    pub fn transcode_to_iter<'a, F>(&'a self) -> <&'a [E::Unit] as TranscodeTo<F::Unit>>::Iter
+    pub fn transcode_to_iter<'a, F>(&'a self) -> <UnitIter<E, S::Iter> as TranscodeTo<F>>::Iter
     where
+        S: StructureIter<'a, E>,
         F: Encoding,
-        &'a [E::Unit]: TranscodeTo<F::Unit>,
+        UnitIter<E, S::Iter>: TranscodeTo<F>,
     {
-        self.as_units().transcode()
+        UnitIter::new(S::iter(&self.data)).transcode()
     }
 
 }

@@ -6,6 +6,7 @@ pub mod conv;
 use std::cmp::Ordering;
 use std::fmt::{self, Debug, Display};
 use std::hash::Hash;
+use std::marker::PhantomData;
 use std::mem;
 use libc::{c_char, wchar_t};
 
@@ -91,6 +92,28 @@ pub trait UnitDebug {
 /**
 Implementations of this trait define conversions from the implementing encoding to a given destination encoding.
 
+In general, the intention is that all implementations of this trait should follow the form:
+
+```ignore
+impl<It> TranscodeTo<DstEnc> for UnitIter<SrcEnc, It>
+where It: Iterator<Item=SrcEnc::Unit> {
+    type Iter = SrcToDstIter<It>;
+    type Error = SrcToDstError;
+
+    fn transcode(self) -> Self::Iter {
+        SrcToDstIter::new(self.into_iter())
+    }
+}
+```
+
+In particular, note the use of `UnitIter` as the implementing type.  This is because using iterator types directly has two drawbacks:
+
+1. Doing so does not establish a direct link between the transcode implementation and the source encoding type.
+
+2. Due to how coherence is checked, it does not allow more than one `TranscodeTo<DstEnc>` implementation to exist.
+
+Using `UnitIter` solves both of these problems.
+
 Implementations are *not* assumed to be reflexive (*i.e.* just because *A*→*B* exists does not imply *B*→*A* exists).  If a conversion *is* reflexive, two implementations must be written.
 
 Implementations **must** support embedded terminators.  They should also be as lazy as possible.
@@ -99,11 +122,11 @@ In regards to failures, implementations should try to support "lossy" transcodin
 
 If an implementation cannot recover from transcoding failures, it *must* fuse itself and return `None` on all subsequent iterations after a single `Err`.
 */
-pub trait TranscodeTo<Dst>: Sized {
+pub trait TranscodeTo<Dst>: Sized where Dst: Encoding {
     /**
     The iterator type that represents an in-progress transcode.
     */
-    type Iter: Iterator<Item=Result<Dst, Self::Error>>;
+    type Iter: Iterator<Item=Result<Dst::Unit, Self::Error>>;
 
     /**
     The error type used to communicate transcoding failure.
@@ -113,8 +136,44 @@ pub trait TranscodeTo<Dst>: Sized {
     /**
     Begin transcoding from the `Self` encoding to the `Dst` encoding.
     */
-    // TODO: switch to iterators as input.
     fn transcode(self) -> Self::Iter;
+}
+
+/**
+A type used to tie encodings and structural iterators together.
+
+This generally appears in constraints as `UnitIter<E, S::Iter>: TranscodeTo<F>`.  This means that there must be an implementation that can transcode strings with encoding `E` into encoding `F`, reading the string contents through the `S::Iter` iterator type.
+
+# Motivation
+
+This type *actually* exists to solve coherence issues with `TranscodeTo` implementations.
+
+See the `TranscodeTo` trait for details.
+*/
+pub struct UnitIter<E, It>
+where
+    It: Iterator<Item=E::Unit>,
+    E: Encoding,
+{
+    iter: It,
+    _marker: PhantomData<E>,
+}
+
+impl<E, It> UnitIter<E, It>
+where
+    It: Iterator<Item=E::Unit>,
+    E: Encoding,
+{
+    pub fn new(iter: It) -> Self {
+        UnitIter {
+            iter: iter,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn into_iter(self) -> It {
+        self.iter
+    }
 }
 
 /**

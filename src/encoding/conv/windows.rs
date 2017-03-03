@@ -1,13 +1,13 @@
 use std::mem;
-use encoding::{TranscodeTo, WUnit};
+use encoding::{TranscodeTo, UnitIter, CheckedUnicode, Wide, WUnit};
 pub use super::WcToUniError;
 
-impl<'a> TranscodeTo<char> for &'a [WUnit] {
-    type Iter = WcToUniIter2<::std::iter::Cloned<::std::slice::Iter<'a, WUnit>>>;
+impl<It> TranscodeTo<CheckedUnicode> for UnitIter<Wide, It> where It: Iterator<Item=WUnit> {
+    type Iter = WcToUniIter2<It>;
     type Error = WcToUniError;
 
     fn transcode(self) -> Self::Iter {
-        WcToUniIter2::new(self.iter().cloned())
+        WcToUniIter2::new(self.into_iter())
     }
 }
 

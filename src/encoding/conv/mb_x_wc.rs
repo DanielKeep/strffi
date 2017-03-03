@@ -1,28 +1,27 @@
 use std::fmt;
 use std::iter;
 use std::mem;
-use std::slice;
 use libc::{c_char};
-use encoding::{TranscodeTo, MbUnit, WUnit};
+use encoding::{TranscodeTo, UnitIter, CheckedUnicode, MultiByte, Wide, MbUnit, WUnit};
 use encoding::conv::os::{WcToUniIter2, WcToUniError};
 use ffi::{MB_LEN_MAX, mbrtowc, wcrtomb, mbstate_t};
 use util::{LiftErrIter, LiftTrapErrIter, LiftErrExt};
 
-impl<'a> TranscodeTo<WUnit> for &'a [MbUnit] {
-    type Iter = MbsToWcIter2<iter::Cloned<slice::Iter<'a, MbUnit>>>;
+impl<It> TranscodeTo<Wide> for UnitIter<MultiByte, It> where It: Iterator<Item=MbUnit> {
+    type Iter = MbsToWcIter2<It>;
     type Error = MbsToWcError;
 
     fn transcode(self) -> Self::Iter {
-        MbsToWcIter2::new(self.iter().cloned())
+        MbsToWcIter2::new(self.into_iter())
     }
 }
 
-impl<'a> TranscodeTo<char> for &'a [MbUnit] {
+impl<It> TranscodeTo<CheckedUnicode> for UnitIter<MultiByte, It> where It: Iterator<Item=MbUnit> {
     type Iter = LiftErrIter<
         iter::Map<
             WcToUniIter2<
                 LiftTrapErrIter<
-                    MbsToWcIter2<iter::Cloned<slice::Iter<'a, MbUnit>>>,
+                    MbsToWcIter2<It>,
                     MbsToWcError,
                 >
             >,
@@ -33,7 +32,7 @@ impl<'a> TranscodeTo<char> for &'a [MbUnit] {
     type Error = MbsToUniError;
 
     fn transcode(self) -> Self::Iter {
-        MbsToWcIter2::new(self.iter().cloned())
+        MbsToWcIter2::new(self.into_iter())
             .lift_err(|over| WcToUniIter2::new(over)
                 .map(map_err as fn(_) -> _))
     }

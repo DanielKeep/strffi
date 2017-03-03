@@ -1,6 +1,7 @@
 /*!
 Structure types and traits.
 */
+use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
 use std::slice;
@@ -12,7 +13,7 @@ This trait is used to abstract over different kinds of string structures used in
 
 These structures are responsible for controlling how a string is laid out in memory, how its length is determined, and how handles to this memory are represented.
 
-In practice, this will be implemented by a marker type (which are not intended to actually be instantiated anywhere), likely along with at least one implementation of `StructureAlloc`, and possibly implementations of the other traits in this module.
+In practice, this will be implemented by a marker type (which are not intended to actually be instantiated anywhere), along with `StructureIter`, likely at least one implementation of `StructureAlloc`, and possibly implementations of the other traits in this module.
 */
 pub trait Structure<E>: Sized where E: Encoding {
     /**
@@ -162,6 +163,21 @@ pub trait StructureDefault<E>: Structure<E> where E: Encoding {
     Construct a default (likely empty) borrowed string.
     */
     fn default<'a>() -> &'a Self::RefTarget;
+}
+
+/**
+Implemented by structures to define how to get iterators from borrowed strings.
+*/
+pub trait StructureIter<'a, E>: Structure<E> where E: Encoding {
+    /**
+    The type of immutable iterators.
+    */
+    type Iter: Iterator<Item=E::Unit>;
+
+    /**
+    Convert an immutably borrowed pointer into an iterator.
+    */
+    fn iter(ptr: &'a Self::RefTarget) -> Self::Iter;
 }
 
 /**
@@ -319,6 +335,41 @@ impl<E> StructureDefault<E> for ZeroTerm where E: Encoding {
     fn default<'a>() -> &'a Self::RefTarget {
         unsafe {
             mem::transmute::<*const E::Unit, _>(E::static_zeroes().as_ptr())
+        }
+    }
+}
+
+impl<'a, E> StructureIter<'a, E> for ZeroTerm where E: Encoding {
+    type Iter = ZeroTermIter<'a, E>;
+
+    fn iter(ptr: &Self::RefTarget) -> Self::Iter {
+        ZeroTermIter {
+            ptr: ptr as *const E::Unit,
+            _marker: PhantomData,
+        }
+    }
+}
+
+/**
+An iterator over the units of a zero-terminated string.
+*/
+pub struct ZeroTermIter<'a, E> where E: Encoding {
+    ptr: *const E::Unit,
+    _marker: PhantomData<&'a E::Unit>,
+}
+
+impl<'a, E> Iterator for ZeroTermIter<'a, E> where E: Encoding {
+    type Item = E::Unit;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            if (*self.ptr).is_zero() {
+                None
+            } else {
+                let unit = *self.ptr;
+                self.ptr = self.ptr.offset(1);
+                Some(unit)
+            }
         }
     }
 }
