@@ -35,7 +35,6 @@ impl<It> WcToUniIter<It> {
 }
 
 pub struct UniToWcIter<It> {
-    at: usize,
     buf: Option<WUnit>,
     iter: Option<It>,
 }
@@ -43,7 +42,6 @@ pub struct UniToWcIter<It> {
 impl<It> UniToWcIter<It> {
     pub fn new(iter: It) -> UniToWcIter<It> {
         UniToWcIter {
-            at: 0,
             buf: None,
             iter: Some(iter),
         }
