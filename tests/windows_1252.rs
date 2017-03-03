@@ -43,4 +43,12 @@ fn test_garcon() {
         let rstr = zmbcstr.into_string().expect(here!());
         assert_eq!(&rstr, WORD);
     }
+    {
+        let zmbcstr = ZMbCString::from_str(WORD).expect(here!());
+        assert_eq!(&zmbcstr, zmbstr);
+    }
+    {
+        let zwcstr = ZWCString::from_str(WORD).expect(here!());
+        assert_eq!(&zwcstr, zwstr);
+    }
 }

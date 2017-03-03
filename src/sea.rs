@@ -433,6 +433,31 @@ where
             _marker: PhantomData,
         })
     }
+
+    /**
+    Construct a `SeaString` from a Rust string.
+
+    # Failure
+
+    This method will fail if allocating memory fails.
+
+    Construction can also fail if the string contents provided are incompatible with the structure.  For example, it is invalid to construct a zero-terminated string with zero units in anywhere *other* than at the end.
+
+    An error will also be returned if the contents of the input string cannot be transcoded to the given encoding.
+    */
+    pub fn from_str<'a>(s: &'a str) -> Result<Self, Box<StdError>>
+    where
+        UnitIter<CheckedUnicode, ::std::str::Chars<'a>>: TranscodeTo<E>,
+    {
+        let mut tc_err = Ok(());
+        let units: Vec<_> = UnitIter::new(s.chars())
+            .transcode()
+            .trap_err(&mut tc_err)
+            .collect();
+        let () = tc_err?;
+        let seas = SeaString::new(&units)?;
+        Ok(seas)
+    }
 }
 
 /**

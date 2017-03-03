@@ -1,6 +1,6 @@
 use std::mem;
 use encoding::{TranscodeTo, UnitIter, CheckedUnicode, Wide, WUnit};
-pub use super::WcToUniError;
+pub use super::{NoError, WcToUniError};
 
 impl<It> TranscodeTo<CheckedUnicode> for UnitIter<Wide, It> where It: Iterator<Item=WUnit> {
     type Iter = WcToUniIter<It>;
@@ -8,6 +8,15 @@ impl<It> TranscodeTo<CheckedUnicode> for UnitIter<Wide, It> where It: Iterator<I
 
     fn transcode(self) -> Self::Iter {
         WcToUniIter::new(self.into_iter())
+    }
+}
+
+impl<It> TranscodeTo<Wide> for UnitIter<CheckedUnicode, It> where It: Iterator<Item=char> {
+    type Iter = UniToWcIter<It>;
+    type Error = NoError;
+
+    fn transcode(self) -> Self::Iter {
+        UniToWcIter::new(self.into_iter())
     }
 }
 
@@ -20,6 +29,22 @@ impl<It> WcToUniIter<It> {
     pub fn new(iter: It) -> WcToUniIter<It> {
         WcToUniIter {
             at: 0,
+            iter: Some(iter),
+        }
+    }
+}
+
+pub struct UniToWcIter<It> {
+    at: usize,
+    buf: Option<WUnit>,
+    iter: Option<It>,
+}
+
+impl<It> UniToWcIter<It> {
+    pub fn new(iter: It) -> UniToWcIter<It> {
+        UniToWcIter {
+            at: 0,
+            buf: None,
             iter: Some(iter),
         }
     }
@@ -85,5 +110,33 @@ impl<It> Iterator for WcToUniIter<It> where It: Iterator<Item=WUnit> {
                 Some(Ok(r))
             }
         }
+    }
+}
+
+impl<It> Iterator for UniToWcIter<It> where It: Iterator<Item=char> {
+    type Item = Result<WUnit, NoError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(wunit) = self.buf.take() {
+            return Some(Ok(wunit));
+        }
+
+        let ch = match {
+            match self.iter.as_mut() {
+                Some(iter) => iter.next(),
+                None => return None,
+            }
+        } {
+            Some(ch) => ch,
+            None => {
+                self.iter = None;
+                return None
+            },
+        };
+
+        let mut utf16 = [0; 2];
+        let utf16 = ch.encode_utf16(&mut utf16[..]);
+        self.buf = utf16.get(1).map(|&u| WUnit(u));
+        Some(Ok(WUnit(utf16[0])))
     }
 }

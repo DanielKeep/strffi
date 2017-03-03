@@ -3,7 +3,8 @@ use std::iter;
 use std::mem;
 use libc::{c_char};
 use encoding::{TranscodeTo, UnitIter, CheckedUnicode, MultiByte, Wide, MbUnit, WUnit};
-use encoding::conv::os::{WcToUniIter, WcToUniError};
+use encoding::conv::NoError;
+use encoding::conv::os::{WcToUniIter, WcToUniError, UniToWcIter};
 use ffi::{MB_LEN_MAX, mbrtowc, wcrtomb, mbstate_t};
 use util::{LiftErrIter, LiftTrapErrIter, LiftErrExt};
 
@@ -44,6 +45,29 @@ impl<It> TranscodeTo<CheckedUnicode> for UnitIter<MultiByte, It> where It: Itera
         MbsToWcIter::new(self.into_iter())
             .lift_err(|over| WcToUniIter::new(over)
                 .map(map_err as fn(_) -> _))
+    }
+}
+
+impl<It> TranscodeTo<MultiByte> for UnitIter<CheckedUnicode, It> where It: Iterator<Item=char> {
+    type Iter = LiftErrIter<
+        iter::Map<
+            WcsToMbIter<
+                LiftTrapErrIter<
+                    UniToWcIter<It>,
+                    NoError,
+                >
+            >,
+            fn(Result<MbUnit, WcsToMbError>) -> Result<MbUnit, WcsToMbError>,
+        >,
+        NoError,
+    >;
+
+    type Error = WcsToMbError;
+
+    fn transcode(self) -> Self::Iter {
+        UniToWcIter::new(self.into_iter())
+            .lift_err(|over| WcsToMbIter::new(over)
+                .map(::util::id as fn(_) -> _))
     }
 }
 
@@ -262,6 +286,12 @@ impl ::std::error::Error for WcsToMbError {
         match *self {
             WcsToMbError::InvalidAt(_) => "invalid unit",
         }
+    }
+}
+
+impl From<NoError> for WcsToMbError {
+    fn from(v: NoError) -> Self {
+        match v {}
     }
 }
 

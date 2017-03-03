@@ -194,3 +194,5 @@ impl Unsigned for i32 {
         self as Self::Unsigned
     }
 }
+
+pub fn id<T>(v: T) -> T { v }

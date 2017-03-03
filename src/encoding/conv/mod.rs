@@ -40,3 +40,24 @@ impl ::std::error::Error for WcToUniError {
         }
     }
 }
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum NoError {}
+
+impl NoError {
+    pub fn coerce<T>(self) -> T {
+        match self {}
+    }
+}
+
+impl fmt::Display for NoError {
+    fn fmt(&self, _fmt: &mut fmt::Formatter) -> fmt::Result {
+        match *self {}
+    }
+}
+
+impl ::std::error::Error for NoError {
+    fn description(&self) -> &str {
+        match *self {}
+    }
+}

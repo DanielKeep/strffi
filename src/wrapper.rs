@@ -224,6 +224,21 @@ impl ZMbCString {
     }
 
     /**
+    Construct a `ZMbCString` from a Rust string.
+
+    # Failure
+
+    This method will fail if allocating memory fails.
+
+    Construction can also fail if the string contains zero units anywhere *other* than at the end.
+
+    An error will also be returned if the contents of the input string cannot be transcoded to the C multi-byte encoding.
+    */
+    pub fn from_str<'a>(s: &'a str) -> Result<Self, Box<StdError>> {
+        SeaString::from_str(s).map(Into::into)
+    }
+
+    /**
     Constructs a `ZMbCString` by taking ownership of a foreign string pointer.
 
     This method will not inspect the foreign string, or compute its length.
