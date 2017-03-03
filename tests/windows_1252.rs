@@ -4,7 +4,7 @@ extern crate strffi;
 
 macro_rules! here { () => { &format!(concat!(file!(), ":{:?}"), line!()) } }
 
-use strffi::{ZMbStr, ZWCString, ZWStr};
+use strffi::{ZMbStr, ZMbCString, ZWCString, ZWStr};
 
 fn set_1252() {
     unsafe {
@@ -21,20 +21,26 @@ fn test_garcon() {
 
     set_1252();
 
+    let zmbstr = unsafe { ZMbStr::from_ptr(WORD_MB.as_ptr() as *const _).expect(here!()) };
+    let zwstr = unsafe { ZWStr::from_ptr(WORD_W.as_ptr() as *const _).expect(here!()) };
     {
-        let zmbstr = unsafe { ZMbStr::from_ptr(WORD_MB.as_ptr() as *const _).expect(here!()) };
         let rstr = zmbstr.into_string().expect(here!());
         assert_eq!(&rstr, WORD);
     }
     {
-        let zwstr = unsafe { ZWStr::from_ptr(WORD_W.as_ptr() as *const _).expect(here!()) };
         let rstr = zwstr.into_string().expect(here!());
         assert_eq!(&rstr, WORD);
     }
     {
-        let zmbstr = unsafe { ZMbStr::from_ptr(WORD_MB.as_ptr() as *const _).expect(here!()) };
         let zwcstr: ZWCString = zmbstr.transcode_to().expect(here!());
+        assert_eq!(&zwcstr, zwstr);
         let rstr = zwcstr.into_string().expect(here!());
+        assert_eq!(&rstr, WORD);
+    }
+    {
+        let zmbcstr: ZMbCString = zwstr.transcode_to().expect(here!()).into();
+        assert_eq!(&zmbcstr, zmbstr);
+        let rstr = zmbcstr.into_string().expect(here!());
         assert_eq!(&rstr, WORD);
     }
 }

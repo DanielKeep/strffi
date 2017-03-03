@@ -16,6 +16,15 @@ impl<It> TranscodeTo<Wide> for UnitIter<MultiByte, It> where It: Iterator<Item=M
     }
 }
 
+impl<It> TranscodeTo<MultiByte> for UnitIter<Wide, It> where It: Iterator<Item=WUnit> {
+    type Iter = WcsToMbIter<It>;
+    type Error = WcsToMbError;
+
+    fn transcode(self) -> Self::Iter {
+        WcsToMbIter::new(self.into_iter())
+    }
+}
+
 impl<It> TranscodeTo<CheckedUnicode> for UnitIter<MultiByte, It> where It: Iterator<Item=MbUnit> {
     type Iter = LiftErrIter<
         iter::Map<
